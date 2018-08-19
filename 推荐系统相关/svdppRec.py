@@ -5,15 +5,13 @@ import numpy as np
 import random
 import time
 
-class SVD(object):
+class SVDPP(object):
     """
-    implementation of SVD for CF
-    Reference:
-    A Guide to Singular Value Decomposition for Collaborative Filtering
+    implementation of SVD++ for CF
     """
     def __init__(self, epoch, eta, userNums, itemNums, ku=0.001, km=0.001, \
                 f=30,save_model=False):
-        super(SVD, self).__init__()
+        super(SVDPP, self).__init__()
         self.epoch = epoch
         self.userNums = userNums
         self.itemNums = itemNums
@@ -27,6 +25,14 @@ class SVD(object):
         self.M = None
 
     def fit(self, train, val=None):
+        # 构造每个用户有过评分行为字典
+        self.Udict = {}
+        for i in range(train.shape[0]):
+            uid = train[i,0]
+            iid = train[i,1]
+            self.Udict.setdefault(uid,[])
+            self.Udict[uid].append(iid)
+
         rateNums = train.shape[0]
         self.meanV = np.sum(train[:,2]) / rateNums
         initv = np.sqrt((self.meanV - 1) / self.f)
@@ -34,6 +40,7 @@ class SVD(object):
         self.M = initv + np.random.uniform(-0.01,0.01,(self.itemNums+1,self.f))
         self.bu = np.zeros(self.userNums + 1)
         self.bi = np.zeros(self.itemNums + 1)
+        self.y = np.zeros((self.itemNums+1, self.f)) + 0.1
         
         start = time.time()
         for i in range(self.epoch):
@@ -42,20 +49,30 @@ class SVD(object):
                 uid = sample[0]
                 iid = sample[1]
                 vij = float(sample[2])
-                # p(U_i,M_j) = mu + b_i + b_u + U_i^TM_j
+
+                sumYj, sqrt_Ni = self.get_Yi(uid)
+                # p(U_i,M_j) = \mu + b_i + b_u + U_i^T (M_j + \frac{1}{\sqrt{|N_i|^2}}*\sum_{j\in N_i}y_j)
                 p = self.meanV + self.bu[uid] + self.bi[iid] + \
-                    np.sum(self.U[uid] * self.M[iid])
+                    np.sum(self.M[iid] * (self.U[uid] + sumYj))
+
                 error = vij - p
                 sumRmse += error**2
                 # 计算Ui,Mj的梯度
                 deltaU = error * self.M[iid] - self.ku * self.U[uid]
-                deltaM = error * self.U[uid] - self.km * self.M[iid]
+                deltaM = error * (self.U[uid] + sumYj) - self.km * self.M[iid]
                 # 更新参数
                 self.U[uid] += self.eta *  deltaU
                 self.M[iid] += self.eta *  deltaM
 
                 self.bu[uid] += self.eta * (error - self.ku * self.bu[uid])
                 self.bi[iid] += self.eta * (error - self.km * self.bi[iid])
+
+                # for j in self.Udict[uid]:
+                #     self.y[j] += self.eta * (error * self.M[j]/sqrt_Ni - self.ku * self.y[j])
+
+                rating_list = self.Udict[uid]
+                self.y[rating_list] += self.eta * (error * self.M[rating_list]/sqrt_Ni - \
+                    self.ku * self.y[rating_list])
 
             trainRmse = np.sqrt(sumRmse/rateNums)
 
@@ -80,9 +97,9 @@ class SVD(object):
             iid = sample[1]
             if uid > self.userNums or iid > self.itemNums:
                 continue
-            
+            sumYj, _ = self.get_Yi(uid)
             predi = self.meanV + self.bu[uid] + self.bi[iid] \
-                    + np.sum(self.U[uid] * self.M[iid])
+                    + np.sum(self.M[iid] * (self.U[uid] + sumYj))
             if predi < 1:
                 predi = 1
             elif predi > 5:
@@ -100,7 +117,21 @@ class SVD(object):
         return pred
 
     def predict(self,test):
+
         return self.evaluate(test)
+
+    # 计算 sqrt_Ni 和 ∑yj
+    def get_Yi(self,uid):
+        Ni = self.Udict[uid]
+        numNi = len(Ni)
+        sqrt_Ni = np.sqrt(numNi)
+        yj = np.zeros((1, self.f))
+        if numNi == 0:
+            sumYj = yj + 0.1
+        else:
+            yj = np.mean(self.y[Ni],axis=0)
+            sumYj = yj / sqrt_Ni
+        return sumYj, sqrt_Ni
 
 def test():
     import pandas as pd
@@ -118,7 +149,7 @@ def test():
 
     userNums = data['user'].max()
     itemNums = data['item'].max()
-    svd = SVD(35, 0.001, userNums, itemNums, f=50)
+    svd = SVDPP(35, 0.001, userNums, itemNums, f=50)
     svd.fit(train,val=val)
 
 if __name__ == '__main__':

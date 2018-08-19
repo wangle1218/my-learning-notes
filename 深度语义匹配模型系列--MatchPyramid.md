@@ -1,4 +1,5 @@
-#深度语义匹配模型系列--MatchPyramid
+# 深度语义匹配模型系列--MatchPyramid
+
 Text Matching as Image Recognition
 
 Liang Pang, Yanyan Lan, Jiafeng Guo
@@ -28,6 +29,7 @@ $$M_{ij} = w_i \bigotimes v_j$$
 ![avater](./pic/cnnill.png)
 
 ### Matching Score and Training
+
 $$(s_0,s_1)^T = W_2\sigma(W_1z+b_1)+b_2 $$
 
 
@@ -44,9 +46,11 @@ which can be easily parallelized on single machine with multi-cores. For regular
 There are three versions of MatchPyramid, depending on different methods used for constructing the matching matrices, denoted as MP-IND, MP-COS, and MP-DOT, respectively. All these models use **two convolutional layers**, **two max-pooling layers**(one of which is a dynamic pooling layer for variable length) and **two full connection layers**. The number of feature maps is 8 and 16 for the first and second convolutional layer, respectively. While the kernel size is set to be **5 × 5 and 3 × 3**, respectively. Unlike ARC-II which initiates with Word2Vec trained on Wikipedia, we **initiate the word vectors in MP-COS and MP-DOT randomly** from a unit ball. Thus our model do not require any external sources.
 
 ### Experiment I: Paraphrase Identification
+
 ![avater](./pic/pym_res.png)
 
 ### Experiment II: Paper Citation Matching
+
 使用一些列的论文和它们的摘要，将论文的引文和摘要作为一对匹配。
 
 ```
