@@ -22,6 +22,7 @@ $$M_{ij} = w_i \bigotimes v_j$$
 ![avater](./pic/if.png)
 
 这种指示函数无法表达相似词的匹配，这对这一点，作者使用词向量来对词和词之间进行计算相似度，分别有使用余弦相似度和点乘。
+
 ![avater](./pic/match.png)
 
 由于相匹配的两个句子，在不同样本中长度不同，所以构建成的匹配矩阵 M 尺寸也不相等，因此使用动态池化操作策略来获取定长特征图。
@@ -38,6 +39,7 @@ class, $$z$$ is the output of the hierarchical convolution, $$W_i$$
 is the weight of the $$i_{th}$$ MLP layer and $$\sigma $$ denotes the activation function.
 
 损失函数如下所示：
+
 ![avater](./pic/pymloss.png)
 
 It performs better when we use the mini-batch strategy (32∼50 in size),
